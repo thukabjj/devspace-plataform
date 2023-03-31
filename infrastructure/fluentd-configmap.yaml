@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentd-config
+  namespace: logging
+  labels:
+    k8s-app: fluentd-logging
+data:
+  fluent.conf: |
+    <source>
+      @type forward
+      port 24224
+      bind 0.0.0.0
+      tag kubernetes.*
+    </source>
+
+    <filter kubernetes.**>
+      @type kubernetes_metadata
+    </filter>
+
+    <match **>
+      @type elasticsearch
+      host elasticsearch.logging.svc.cluster.local
+      port 9200
+      logstash_format true
+      logstash_prefix kubernetes_cluster
+      include_tag_key true
+      tag_key kubernetes.tag
+      flush_interval 1s
+    </match>
