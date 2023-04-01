@@ -25,7 +25,6 @@ import (
 * - In the creation of the new github repository is set the branch master and should be renamed to main instead master.
 * - Remove the temporary template folder after move all the files to the temporary new repository folder.
 * - After push in the new repository the initial commit should be deleted the temporary folder of the new repository.
-* - Finalizing the refactor create methods by context
 * - Should covered with unit tests
  */
 func CreateGithubRepository(productRepositoryDTO dto.ProjectRepositoryDTO) error {
@@ -70,86 +69,44 @@ func CreateGithubRepository(productRepositoryDTO dto.ProjectRepositoryDTO) error
 
 	// Add the remote URL
 	err = setRemoteGitURLInTemporaryDirectoryFromNewProject(newRepository, templateURLNew)
-
+	if err != nil {
+		return err
+	}
 	// Move files from Temporary template directory to temporary new github repository directory
 	errMov := moveTemplateToTempFolder(templatePath, templatePathNew)
 
 	if errMov != nil {
-		return fmt.Errorf("failed to move the template project to repository folder: %v", err)
+		return errMov
 	}
 
 	// Add, commit, and push the modified files to the new repository
 	worktreeNew, errNew := newRepository.Worktree()
 	if errNew != nil {
-		return fmt.Errorf("failed to get worktree: %v", err)
+		return fmt.Errorf("failed to get worktree of the new repository: %v", err)
 	}
 
 	// Replace the <module_name> placeholder with the actual module name
 	moduleName := productRepositoryDTO.Name
-	err = filepath.Walk(templatePathNew, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if strings.Contains(path, ".git") {
-			return nil // skip the .git directory
-		}
-		if info.IsDir() {
-			return nil
-		}
-		content, err := ioutil.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		content = bytes.ReplaceAll(content, []byte("<module_name>"), []byte(moduleName))
-		relPath, err := filepath.Rel(templatePathNew, path)
-		if err != nil {
-			return err
-		}
-		err = ioutil.WriteFile(path, content, 0666)
-		if err != nil {
-			return err
-		}
-		_, err = worktreeNew.Add(relPath)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-
+	err = replaceDefaultNameStructureOfTheTemplateToNewRepository(templatePathNew, moduleName, worktreeNew)
 	if err != nil {
-		return fmt.Errorf("failed to replace <module_name> placeholder: %v", err)
+		return err
 	}
 
 	// Add and commit the changes
-	_, err = worktreeNew.Add(".")
+	err = addChangesInTheGithubOfNewRepository(worktreeNew)
 	if err != nil {
-		return fmt.Errorf("failed to add files to index: %v", err)
+		return err
 	}
 
 	// Create the commit
-	commitMsg := fmt.Sprintf("Initial commit for %s", moduleName)
-	_, err = worktreeNew.Commit(commitMsg, &git.CommitOptions{
-		Author: &object.Signature{
-			Name:  "Your Name",
-			Email: "your.email@example.com",
-			When:  time.Now(),
-		},
-	})
+	err = commitChangesInTheGithubOfNewRepository(moduleName, worktreeNew)
 	if err != nil {
-		return fmt.Errorf("failed to commit files: %v", err)
+		return err
 	}
 
-	// Push the changes to the new repository
-	err = newRepository.Push(&git.PushOptions{
-		RemoteName: "origin",
-		Auth: &http.BasicAuth{
-			Username: "Devspace", // yes, this can be anything except an empty string
-			Password: token,
-		},
-		Progress: os.Stdout,
-	})
+	err = pushChangesInTheGithubOfNewRepository(token, newRepository)
 	if err != nil {
-		return fmt.Errorf("failed to push files to repository: %v", err)
+		return err
 	}
 
 	fmt.Printf("Created repository: %s\n", createdRepo.GetName())
@@ -264,6 +221,83 @@ func moveTemplateToTempFolder(sourceTemplatePath string, targetTemplatePath stri
 	})
 	if err != nil {
 		return fmt.Errorf("Error: %s\n", err)
+	}
+	return nil
+}
+
+func replaceDefaultNameStructureOfTheTemplateToNewRepository(templatePathNew string, moduleName string, worktreeNew *git.Worktree) error {
+
+	err := filepath.Walk(templatePathNew, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if strings.Contains(path, ".git") {
+			return nil // skip the .git directory
+		}
+		if info.IsDir() {
+			return nil
+		}
+		content, err := ioutil.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		content = bytes.ReplaceAll(content, []byte("<module_name>"), []byte(moduleName))
+		relPath, err := filepath.Rel(templatePathNew, path)
+		if err != nil {
+			return err
+		}
+		err = ioutil.WriteFile(path, content, 0666)
+		if err != nil {
+			return err
+		}
+		_, err = worktreeNew.Add(relPath)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to replace <module_name> placeholder: %v", err)
+	}
+	return nil
+}
+
+func addChangesInTheGithubOfNewRepository(worktreeNew *git.Worktree) error {
+	_, err := worktreeNew.Add(".")
+	if err != nil {
+		return fmt.Errorf("failed to add files to index: %v", err)
+	}
+	return nil
+}
+
+func commitChangesInTheGithubOfNewRepository(moduleName string, worktreeNew *git.Worktree) error {
+	commitMsg := fmt.Sprintf("Initial commit for %s", moduleName)
+	_, err := worktreeNew.Commit(commitMsg, &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "Devspace BOT",
+			Email: "devspace@devspace.com",
+			When:  time.Now(),
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to commit files: %v", err)
+	}
+	return nil
+}
+
+func pushChangesInTheGithubOfNewRepository(token string, newRepository *git.Repository) error {
+	// Push the changes to the new repository
+	err := newRepository.Push(&git.PushOptions{
+		RemoteName: "origin",
+		Auth: &http.BasicAuth{
+			Username: "Devspace", // yes, this can be anything except an empty string
+			Password: token,
+		},
+		Progress: os.Stdout,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to push files to repository: %v", err)
 	}
 	return nil
 }
