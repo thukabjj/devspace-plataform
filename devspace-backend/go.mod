@@ -4,10 +4,9 @@ go 1.19
 
 require (
 	github.com/bndr/gojenkins v1.1.0
+	github.com/elastic/go-elasticsearch/v8 v8.7.0
 	github.com/gin-gonic/gin v1.9.0
-	github.com/go-git/go-git v4.7.0+incompatible
 	github.com/google/go-github/v35 v35.3.0
-	golang.org/x/crypto v0.7.0
 	golang.org/x/oauth2 v0.6.0
 
 )
@@ -16,11 +15,13 @@ require (
 	github.com/ProtonMail/go-crypto v0.0.0-20230217124315-7d5c6f04bbb8 // indirect
 	github.com/acomagu/bufpipe v1.0.4 // indirect
 	github.com/cloudflare/circl v1.1.0 // indirect
+	github.com/elastic/elastic-transport-go/v8 v8.2.0 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
 	github.com/go-git/go-billy/v5 v5.4.1 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
 	github.com/skeema/knownhosts v1.1.0 // indirect
+	golang.org/x/crypto v0.7.0 // indirect
 )
 
 require (
